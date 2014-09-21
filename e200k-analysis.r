@@ -16,45 +16,54 @@ ancjdr = read.table('ancjdr.txt',sep='\t',header=TRUE)
 # combine datasets
 phen = rbind(mrc,ucsf,goett,ancjdr)
 
-# schema of dataset
+# show schema of dataset
 colnames(phen)
-# [1] "study"              "fid"                "iid"                "affparent"          "father"            
-# [6] "mother"             "sex"                "mutation_in_family" "gene_positive"      "gt129"             
-# [11] "cis129"             "trans129"           "yob"                "age"                "censored"          
-# [16] "dead"               "died_cjd"           "conf_non_cjd"       "duration_d"         "infcat"            
-# [21] "notes"              "questionable"  
 
-# check overall dataset size
-dim(phen) # 513 individuals including unaffected relatives and individuals of unknown mutation status
-sum(phen$gene_positive == 1) # 220 gene-positive individuals
-sum(phen$gene_positive == 1 & phen$died_cjd) # 
+# show descriptive statistics about dataset
+
+dim(phen) # individuals including unaffected relatives and individuals of unknown mutation status
+
+sum(phen$gene_positive == 1) # mutation-positive individuals
+
+sum(phen$gene_positive == 1 & phen$died_cjd) # mutation-positive individuals with CJD
+
+# number about whom at least one key variable is known
+# (the others only contribute to genetic testing rate)
 sum((!is.na(phen$duration_d) | !is.na(phen$age) | !is.na(phen$gt129)) & phen$gene_positive == 1) 
-# Of the 220, there are 212 about whom at least one key variable is known
-# (the other 8 only contribute to genetic testing rate)
-# size of dataset for each interesting variable:
-sum((!is.na(phen$duration_d)) & phen$gene_positive == 1) 
-# 60 gene-positive individuals for whom disease duration is known
-sum((!is.na(phen$age)) & phen$gene_positive == 1) 
-# 207 gene-positive individuals for whom age (either age at onset/death or censored age) is known
-sum((!is.na(phen$gt129)) & phen$gene_positive == 1) 
-# 108 gene-positive individuals for whom codon 129 genotype is known
-sum((!is.na(phen$cis129)) & phen$gene_positive == 1) 
-# 164 gene-positive individuals for whom the cis codon 129 is known
-sum(( !is.na(phen$age) & !is.na(phen$gt129)) & phen$gene_positive == 1) 
-# 104 gene-positive individuals for whom age and codon 129 genotype are known
-sum((!is.na(phen$duration_d) & !is.na(phen$gt129)) & phen$gene_positive == 1) 
-# 42 gene-positive individuals for whom duration and full codon 129 are known
-sum((!is.na(phen$duration_d) & !is.na(phen$age) ) & phen$gene_positive == 1) 
-# 59 gene-positive individuals for whom duration and age are known
 
-# a few individuals were flagged as "questionable" if we were not absolutely certain
-# about age at onset, diagnosis or paternity
+# size of dataset for each interesting variable...
+
+# mutation-positive individuals for whom disease duration is known
+sum((!is.na(phen$duration_d)) & phen$gene_positive == 1) 
+
+# mutation-positive individuals for whom age (either age at onset/death or censored age) is known
+sum((!is.na(phen$age)) & phen$gene_positive == 1) 
+
+# mutation-positive individuals for whom codon 129 genotype is known
+sum((!is.na(phen$gt129)) & phen$gene_positive == 1) 
+
+# mutation-positive individuals for whom the cis codon 129 is known
+sum((!is.na(phen$cis129)) & phen$gene_positive == 1) 
+
+# mutation-positive individuals for whom age and codon 129 genotype are known
+sum(( !is.na(phen$age) & !is.na(phen$gt129)) & phen$gene_positive == 1) 
+
+# mutation-positive individuals for whom duration and full codon 129 are known
+sum((!is.na(phen$duration_d) & !is.na(phen$gt129)) & phen$gene_positive == 1) 
+
+# mutation-positive individuals for whom duration and age are known
+sum((!is.na(phen$duration_d) & !is.na(phen$age) ) & phen$gene_positive == 1) 
+
+# how many individuals were flagged as "questionable" because we were not 
+# absolutely certain about either age at onset, diagnosis or paternity
 sum(phen$questionable & phen$died_cjd) # of people who died of CJD
 sum(phen$questionable & phen$gene_positive == 1) # of mutation-positive (including asymptomatics)
 sum(phen$questionable) # of all individuals including unaffecteds
 
-# uncomment this line to re-run without the "questionable" individuals
+# uncomment this line to re-run analysis without the "questionable" individuals
 # phen = phen[!phen$questionable,]
+
+#### GENERAL DESCRIPTIVE STATISTICS / TABLE 3
 
 # size and general characteristics of datasets for Table 3
 sql_query = "
@@ -75,213 +84,101 @@ descstats$pct_indirect = descstats$n_indirect/descstats$n_gene_positive
 descstats$pct_asymp = descstats$n_asymptomatic/descstats$n_gene_positive
 descstats
 
-# range of dates for direct ascertainment
+# generate all parent-child pairs
 sql_query = "
-select   study, min(yob+age) fromyear, max(yob+age) toyear
-from     phen
-where    infcat =  1
-and      died_cjd
-group by study
-order by study
-;"
-sqldf(sql_query)
-
-# simple histogram of age of onset/death
-hist(phen$age[phen$died_cjd],col='black',breaks=100)
-
-# pub-quality histogram of age of onset/death (Fig 2a)
-aa_hist_all = table(phen$age[phen$died_cjd])
-aa_hist_both1 = table(phen$age[phen$died_cjd & phen$infcat == 1])
-png('fig2a.aa.hist.e200k.png',res=300,pointsize=3,width=500,height=500)
-par(lend=1)
-plot(aa_hist_all,lwd=2,type='h',col='#999999',xaxt='n',xlab='Age of onset or death',ylab='Frequency',
-     main = 'Age of onset/death distribution')
-points(aa_hist_both1,col='black',type='h',lwd=2)
-axis(side=1,at=c(30,40,50,60,70,80,90),labels=c(30,40,50,60,70,80,90))
-abline(h=0,lwd=.5)
-legend('topleft',c('direct','indirect'),lwd=2,col=c('black','#999999'))
-mtext(side=3, line=-2, text="A", cex=2, adj=0, outer=TRUE)
-dev.off()
-
-# pub-quality histogram of year of onset/death (Fig 2b)
-phen$yoa = phen$yob + phen$age
-yoa_hist_all = table(phen$yoa[phen$died_cjd])
-yoa_hist_both1 = table(phen$yoa[phen$died_cjd & phen$infcat == 1])
-png('fig2b.yoa.hist.e200k.png',res=300,pointsize=3,width=500,height=500)
-par(lend=1)
-plot(yoa_hist_all,lwd=2,type='h',col='#999999',xaxt='n',xlab='Year of onset or death',ylab='Frequency',
-     main = 'Year of onset/death distribution')
-points(yoa_hist_both1,col='black',type='h',lwd=2)
-axis(side=1,at=c(1940,1960,1980,2000,2013),labels=c(1940,1960,1980,2000,2013))
-abline(h=0,lwd=.5)
-legend('topleft',c('direct','indirect'),lwd=2,col=c('black','#999999'))
-mtext(side=3, line=-2, text="B", cex=2, adj=0, outer=TRUE)
-dev.off()
-
-# check percentage of years of onset that are since the gene's discovery
-sum(!is.na(phen$yoa) & phen$yoa > 1990)/sum(!is.na(phen$yoa)) # 92%
-sum(!is.na(phen$yoa) & phen$yoa > 1988)/sum(!is.na(phen$yoa)) # 92%
-# 92% are since 1991 inclusive, with no cases in 1989 or 1990
-
-# is age of onset/death normally distributed?
-shapiro.test(phen$age[phen$died_cjd])
-
-# anova: does age of onset differ by study?
-m = lm(age ~ study, data = subset(phen, died_cjd))
-summary(m)
-n = sum(phen$died_cjd & !is.na(phen$age) & !is.na(phen$study))
-n 
-
-# anova: does age of onset differ by sex?
-m = lm(age ~ sex, data = subset(phen, died_cjd))
-summary(m)
-n = sum(phen$died_cjd & !is.na(phen$age) & !is.na(phen$sex))
-n
-
-# anova: does age of onset differ by mode of ascertainment?
-phen$direct = phen$infcat==1
-m = lm(age ~ direct, data = subset(phen, died_cjd))
-summary(m)
-n = sum(phen$died_cjd & !is.na(phen$age) & !is.na(phen$infcat))
-n
-
-# age of onset desc stats
-mean(phen$age[phen$died_cjd],na.rm=TRUE)
-sd(phen$age[phen$died_cjd],na.rm=TRUE)
-sum(!is.na(phen$age[phen$died_cjd]))
-median(phen$age[phen$died_cjd],na.rm=TRUE)
-
-# overall survival curve for everyone
-survivaldata = phen[phen$gene_positive == 1,c("age","died_cjd")]
-mfit = survfit(Surv(age, died_cjd==1) ~ 1, data = survivaldata)
-mfit # median 64, n = 208 observations, 159 events
-# what does the survival curve look like overall?
-plot(mfit,col='black',lwd=3,main='Survival of all E200K individuals',xlab='Age',ylab='Proportion surviving')
-mfit$surv[mfit$time==80] # proportion surviving at age 80
-
-
-# what are the sexes of the affected parents?
-sql_query = "
-select   parent.sex
+select   parent.study study, 
+parent.gene_positive p_gene_positive,
+parent.died_cjd p_died_cjd,
+parent.age p_age,
+parent.yob p_yob,
+child.gene_positive c_gene_positive,
+child.died_cjd c_died_cjd,
+child.age c_age,
+child.yob c_yob
 from     phen parent, phen child
 where    child.affparent = parent.iid
-and      child.gene_positive = 1 
-and      parent.gene_positive = 1
 ;
 "
-table(sqldf(sql_query))
-# 47 F, 39 M
+pc = sqldf(sql_query)
 
-# anova: does age of onset differ by cis codon?
-# linear model
-m = lm(age ~ cis129, data = subset(phen, died_cjd))
-summary(m)
-# t test for same
-t.test(age ~ cis129, data = subset(phen, died_cjd))
-# n
-sum(!is.na(phen$cis129) & !is.na(phen$age) & phen$died_cjd) 
-sum(!is.na(phen$cis129) & !is.na(phen$age) & phen$died_cjd & phen$cis129 == 'M') 
-sum(!is.na(phen$cis129) & !is.na(phen$age) & phen$died_cjd & phen$cis129 == 'V') 
+# number of gene-positive parent-child pairs
+sum(pc$p_gene_positive == 1 & pc$c_gene_positive == 1)
 
-# anova: does age of onset for cis 129M individuals differ by 129 genotype (i.e. trans codon)?
-m = lm(age ~ gt129, data = subset(phen, died_cjd & cis129=='M'))
-summary(m)
-# t test for same
-t.test(age ~ gt129, data = subset(phen, died_cjd & cis129=='M'))
-# n
-sum(phen$died_cjd & phen$cis129=='M' & phen$gt129=='MV' & !is.na(phen$gt129) & !is.na(phen$age),na.rm=TRUE)
-sum(phen$died_cjd & phen$cis129=='M' & phen$gt129=='MM' & !is.na(phen$gt129) & !is.na(phen$age),na.rm=TRUE)
+# descriptive stats for parent-child pairs
+sql_query = "
+select   study,
+count(*),
+sum(p_gene_positive = 1 and c_gene_positive = 1) both_gp
+from     pc
+group by study
+order by study
+"
+pc_descstats = sqldf(sql_query)
+pc_descstats
 
-# cis 129M, MV vs MM survival analysis
-# png('cx.129M.gt129.survival.analysis.png',width=600,height=400)
-cism = subset(phen, cis129 == 'M' & gene_positive == 1 & !is.na(age))
-survdata = data.frame(ages=cism$age, status=as.integer(!cism$censored), group=cism$gt129)
-n = dim(survdata)[1]
-msurv = with(survdata, Surv(ages, status==1))
-diffobj = survdiff(Surv(ages,status==1)~group, data=survdata)
-n = as.integer(sum(diffobj$n))
-p = 1-pchisq(diffobj$chisq,df=1)
-main = 'Survival of MM vs. MV genotypes with E200K cis 129M'
-tobj = t.test(age ~ gt129, data = subset(phen, died_cjd & cis129=='M'))
-p_t = tobj$p.value
-subt = paste('n = ',n,' individuals, log-rank test p value = ',formatC(p,digits=2),
-             ' t test p value = ',formatC(p_t,digits=2),sep='') 
-plot(survfit(Surv(ages,status)~group,data=survdata),col=c('black','blue'),main=main,sub=subt,lwd=3)
-legend('bottomleft',c('MM','MV'),col=c('black','blue'),lwd=3)
-survfit(Surv(ages,status)~group,data=survdata)
-# dev.off()
-# note: there are 17 MV and 65 MM in the above analysis, which is slightly off from 
-# expectation given the approx. 70%/30% allele ratio in Europeans
-# however, there is bias here, as many individuals were not phased or not genotyped
-# and for those I was only able to assign cis codons if at least one individual in the family
-# was homozygous at codon 129. therefore 129 hets are underrepresented in this analysis.
+descstats$gp_pairs = pc_descstats$both_gp
 
-# cis 129M vs cis 129V survival analysis
-# png('cx.cis129.survival.analysis.png',width=600,height=400)
-cisdata = subset(phen, gene_positive == 1 & !is.na(age) & !is.na(cis129))
-survdata = data.frame(ages=cisdata$age, status=as.integer(!cisdata$censored), group=cisdata$cis129)
-msurv = with(survdata, Surv(ages, status==1))
-diffobj = survdiff(Surv(ages,status==1)~group, data=survdata)
-n = as.integer(sum(diffobj$n))
-p = 1-pchisq(diffobj$chisq,df=1)
-tobj = t.test(age ~ cis129, data = subset(phen, died_cjd))
-p_t = tobj$p.value
-main = 'Survival of cis 129M vs. cis 129V haplotypes'
-subt = paste('n = ',n,' individuals, log-rank test p value = ',formatC(p,digits=2),
-             ' t test p value = ',formatC(p_t,digits=2),sep='') 
-plot(survfit(Surv(ages,status)~group,data=survdata),col=c('black','blue'),main=main,sub=subt,lwd=3)
-legend('bottomleft',c('cis 129M','cis 129V'),col=c('black','blue'),lwd=3)
-survfit(Surv(ages,status)~group,data=survdata)
-# dev.off()
-# 145 M vs. 13 V
+# Create Table 3
+summary = c('all',sum(descstats$n_gene_positive),sum(descstats$gp_pairs),
+            sum(descstats$pct_indirect*descstats$n_gene_positive)/sum(descstats$n_gene_positive),
+            sum(descstats$pct_asymp*descstats$n_gene_positive)/sum(descstats$n_gene_positive))
+descstats_for_tbl3 = rbind(descstats[,c('study','n_gene_positive','gp_pairs','pct_indirect','pct_asymp')],
+                           summary)
+descstats_for_tbl3
 
-# to test above code, you can use this code above to add fake data to it and see how the MV curve changes
-# testdata = data.frame(ages=as.numeric(c(30,29,29,27,26,25,24,23,22,21)), status=rep(1,10), group=rep("MV",10))
-# survdata = rbind(survdata, testdata)
+write.table(descstats_for_tbl3,'descstats.txt',sep='\t',row.names=FALSE,col.names=TRUE,quote=FALSE)
 
-# pub-quality figure: yob/ao correlation (Fig 2c)
-png('fig2c.yob.aa.png',res=300,pointsize=3,width=500,height=500)
-m = lm(age ~ yob, data=subset(phen, died_cjd & infcat == 1))
-summary(m)
-slope1 = summary(m)$coefficients[2,1]
-pval1 = summary(m)$coefficients[2,4]
-m1 = m
-m = lm(age ~ yob, data=subset(phen, died_cjd))
-summary(m)
-slope2 = summary(m)$coefficients[2,1]
-pval2 = summary(m)$coefficients[2,4]
-m2 = m
-subtitle = ''
-# uncomment this code to auto-generate a subtitle:
-# subtitle=paste("slope = ",formatC(slope1,digits=2,format='f')," (p = ",
-#                formatC(pval1,digits=2),") with only black points",", slope = ",
-#                formatC(slope2,digits=2,format='f')," (p = ",
-#                formatC(pval2,digits=2),") with all points",
-#                sep='')
-plot(phen$yob[phen$died_cjd], phen$age[phen$died_cjd], pch=19, col='#999999', xlab='Year of birth', ylab='Age of onset or death',
-     main = 'Year of birth - age of onset/death correlation', sub = subtitle, ylim=c(0,90))
-points(phen$yob[phen$died_cjd & phen$infcat == 1], phen$age[phen$died_cjd & phen$infcat == 1], pch=19, col='black')
-abline(m1, col='black', lwd = .75)
-abline(m2, col='black', lty='dashed', lwd= .75)
-legend('bottomleft',c('direct','indirect'),col=c('black','gray'),pch=19)
-mtext(side=3, line=-2, text="C", cex=2, adj=0, outer=TRUE)
-dev.off()
 
-slope1
-pval1
-slope2
-pval2
+#### PROPORTION OF AT-RISK WHO HAVE KNOWN GENOTYPES
 
-# duration
+# what fraction of at-risk individuals have undergone predictive testing?
+gene_pos_iids = phen$iid[phen$gene_positive == 1]
+# at risk are those with a gene pos parent and self not yet dead of CJD
+phen$at_risk = (phen$mother %in% gene_pos_iids | phen$father %in% gene_pos_iids) & !phen$died_cjd
+# also at risk are those with an at risk parent who did not test negative
+# so iterate for a few generations here (manually checked to see when no additional
+# individuals were being added)
+at_risk_iids = phen$iid[phen$at_risk & (phen$gene_positive != 0)]
+phen$at_risk = phen$at_risk | (phen$mother %in% at_risk_iids | phen$father %in% at_risk_iids)
+at_risk_iids = phen$iid[phen$at_risk & (phen$gene_positive != 0)]
+phen$at_risk = phen$at_risk | (phen$mother %in% at_risk_iids | phen$father %in% at_risk_iids)
+at_risk_iids = phen$iid[phen$at_risk & (phen$gene_positive != 0)]
+phen$at_risk = phen$at_risk | (phen$mother %in% at_risk_iids | phen$father %in% at_risk_iids)
+
+# summary of at-risk people by mutation status (-1 = unknown, 0 = negative, 1 = positive)
+table(phen$gene_positive[phen$at_risk])
+
+# add in the manual counts of at-risk individuals who were omitted from the phen
+# spreadsheet, from the UCSF pedigrees
+ucsf_at_risk = read.table('ucsf-at-risk-counts.txt',header=TRUE)
+# N.B. in the manual UCSF counting, just like above, at risk is rigorously defined as a direct 
+# descendent of someone who tests positive, without any negative tests in intervening generations.
+# Sibs of single affecteds w/o other family history are NOT considered at risk.
+ucsf_at_risk_n = sum(ucsf_at_risk$n_atrisk) 
+ucsf_at_risk_n
+
+tested = sum(phen$gene_positive[phen$at_risk] %in% c(0,1))
+untested = sum(phen$gene_positive[phen$at_risk] == -1) + ucsf_at_risk_n
+
+proportion_tested = tested / (tested+untested)
+proportion_tested
+
+# % of people ascertained directly who have no family history
+sum(is.na(phen$affparent[phen$infcat==1 & phen$died_cjd]))/sum(phen$infcat==1 & phen$died_cjd)
+
+# note that it goes down to 42% if you also include asymptomatics seen directly,  i.e. 
+sum(is.na(phen$affparent[phen$infcat==1]))/sum(phen$infcat==1) # = 42%
+
+#### DISEASE DURATION
+
 sum(!is.na(phen$duration_d))
 mean(phen$duration_d,na.rm=TRUE)
 sd(phen$duration_d,na.rm=TRUE) 
 summary(phen$duration_d)
 median(phen$duration_d,na.rm=TRUE) 
 
-
 # shape of duration distribution
-hist(phen$duration_d)
+hist(phen$duration_d,col='black')
 
 # MM vs. MV duration for cis129M:
 t.test(phen$duration_d[phen$gt129=='MM' & phen$cis129=='M'], phen$duration_d[phen$gt129=='MV' & phen$cis129=='M'])
@@ -351,24 +248,143 @@ table(phen$direct[!is.na(phen$duration_d)])
 # is duration normally distributed?
 shapiro.test(phen$duration_d)
 
-# year of birth desc stats
-sum(!is.na(phen$yob)) 
-sum(!is.na(phen$yob[phen$died_cjd])) 
-# directly ascertained
-sum(!is.na(phen$yob[phen$died_cjd & phen$infcat == 1])) 
-sum(phen$died_cjd & phen$infcat == 1) 
-sum(!is.na(phen$yob[phen$died_cjd & phen$infcat == 1]))/sum(phen$died_cjd & phen$infcat == 1) 
-# indirectly ascertained
-sum(!is.na(phen$yob[phen$died_cjd & phen$infcat > 1])) 
-sum(phen$died_cjd & phen$infcat > 1) 
-sum(!is.na(phen$yob[phen$died_cjd & phen$infcat > 1]))/sum(phen$died_cjd & phen$infcat > 1) 
+#### AGE OF ONSET DESCRIPTIVE STATISTICS
 
-# how many asymptomatic individuals are included?
-sum(phen$gene_positive==1 & !phen$died_cjd) # 54
-# double checking numbers:
-# the year of death desc stats are based on 73 + 93 = 166
-# the asymptomatics are 54 
-# total = 220
+# simple histogram of age of onset/death
+hist(phen$age[phen$died_cjd],col='black',breaks=100)
+
+# pub-quality histogram of age of onset/death (Fig 2a)
+aa_hist_all = table(phen$age[phen$died_cjd])
+aa_hist_both1 = table(phen$age[phen$died_cjd & phen$infcat == 1])
+png('fig2a.aa.hist.e200k.png',res=300,pointsize=3,width=500,height=500)
+par(lend=1)
+plot(aa_hist_all,lwd=2,type='h',col='#999999',xaxt='n',xlab='Age of onset or death',ylab='Frequency',
+     main = 'Age of onset/death distribution')
+points(aa_hist_both1,col='black',type='h',lwd=2)
+axis(side=1,at=c(30,40,50,60,70,80,90),labels=c(30,40,50,60,70,80,90))
+abline(h=0,lwd=.5)
+legend('topleft',c('direct','indirect'),lwd=2,col=c('black','#999999'))
+mtext(side=3, line=-2, text="A", cex=2, adj=0, outer=TRUE)
+dev.off()
+
+
+# is age of onset/death normally distributed?
+shapiro.test(phen$age[phen$died_cjd])
+
+# anova: does age of onset differ by study?
+m = lm(age ~ study, data = subset(phen, died_cjd))
+summary(m)
+n = sum(phen$died_cjd & !is.na(phen$age) & !is.na(phen$study))
+n 
+
+# anova: does age of onset differ by sex?
+m = lm(age ~ sex, data = subset(phen, died_cjd))
+summary(m)
+n = sum(phen$died_cjd & !is.na(phen$age) & !is.na(phen$sex))
+n
+
+# anova: does age of onset differ by mode of ascertainment?
+phen$direct = phen$infcat==1
+m = lm(age ~ direct, data = subset(phen, died_cjd))
+summary(m)
+n = sum(phen$died_cjd & !is.na(phen$age) & !is.na(phen$infcat))
+n
+
+# age of onset desc stats
+mean(phen$age[phen$died_cjd],na.rm=TRUE)
+sd(phen$age[phen$died_cjd],na.rm=TRUE)
+sum(!is.na(phen$age[phen$died_cjd]))
+median(phen$age[phen$died_cjd],na.rm=TRUE)
+
+# overall survival curve for everyone
+survivaldata = phen[phen$gene_positive == 1,c("age","died_cjd")]
+mfit = survfit(Surv(age, died_cjd==1) ~ 1, data = survivaldata)
+mfit # median 64, n = 208 observations, 159 events
+# what does the survival curve look like overall?
+plot(mfit,col='black',lwd=3,main='Survival of all E200K individuals',xlab='Age',ylab='Proportion surviving')
+mfit$surv[mfit$time==80] # proportion surviving at age 80
+
+
+# anova: does age of onset differ by cis codon?
+# linear model
+m = lm(age ~ cis129, data = subset(phen, died_cjd))
+summary(m)
+# t test for same
+t.test(age ~ cis129, data = subset(phen, died_cjd))
+# n
+sum(!is.na(phen$cis129) & !is.na(phen$age) & phen$died_cjd) 
+sum(!is.na(phen$cis129) & !is.na(phen$age) & phen$died_cjd & phen$cis129 == 'M') 
+sum(!is.na(phen$cis129) & !is.na(phen$age) & phen$died_cjd & phen$cis129 == 'V') 
+
+# anova: does age of onset for cis 129M individuals differ by 129 genotype (i.e. trans codon)?
+m = lm(age ~ gt129, data = subset(phen, died_cjd & cis129=='M'))
+summary(m)
+# t test for same
+t.test(age ~ gt129, data = subset(phen, died_cjd & cis129=='M'))
+# n
+sum(phen$died_cjd & phen$cis129=='M' & phen$gt129=='MV' & !is.na(phen$gt129) & !is.na(phen$age),na.rm=TRUE)
+sum(phen$died_cjd & phen$cis129=='M' & phen$gt129=='MM' & !is.na(phen$gt129) & !is.na(phen$age),na.rm=TRUE)
+
+# cis 129M, MV vs MM survival analysis
+# png('cx.129M.gt129.survival.analysis.png',width=600,height=400)
+cism = subset(phen, cis129 == 'M' & gene_positive == 1 & !is.na(age))
+survdata = data.frame(ages=cism$age, status=as.integer(!cism$censored), group=cism$gt129)
+n = dim(survdata)[1]
+msurv = with(survdata, Surv(ages, status==1))
+diffobj = survdiff(Surv(ages,status==1)~group, data=survdata)
+n = as.integer(sum(diffobj$n))
+p = 1-pchisq(diffobj$chisq,df=1)
+main = 'Survival of MM vs. MV genotypes with E200K cis 129M'
+tobj = t.test(age ~ gt129, data = subset(phen, died_cjd & cis129=='M'))
+p_t = tobj$p.value
+subt = paste('n = ',n,' individuals, log-rank test p value = ',formatC(p,digits=2),
+             ' t test p value = ',formatC(p_t,digits=2),sep='') 
+plot(survfit(Surv(ages,status)~group,data=survdata),col=c('black','blue'),main=main,sub=subt,lwd=3)
+legend('bottomleft',c('MM','MV'),col=c('black','blue'),lwd=3)
+survfit(Surv(ages,status)~group,data=survdata)
+# dev.off()
+# note: there are 17 MV and 65 MM in the above analysis, which is slightly off from 
+# expectation given the approx. 70%/30% allele ratio in Europeans
+# however, there is bias here, as many individuals were not phased or not genotyped
+# and for those I was only able to assign cis codons if at least one individual in the family
+# was homozygous at codon 129. therefore 129 hets are underrepresented in this analysis.
+
+# cis 129M vs cis 129V survival analysis
+# png('cx.cis129.survival.analysis.png',width=600,height=400)
+cisdata = subset(phen, gene_positive == 1 & !is.na(age) & !is.na(cis129))
+survdata = data.frame(ages=cisdata$age, status=as.integer(!cisdata$censored), group=cisdata$cis129)
+msurv = with(survdata, Surv(ages, status==1))
+diffobj = survdiff(Surv(ages,status==1)~group, data=survdata)
+n = as.integer(sum(diffobj$n))
+p = 1-pchisq(diffobj$chisq,df=1)
+tobj = t.test(age ~ cis129, data = subset(phen, died_cjd))
+p_t = tobj$p.value
+main = 'Survival of cis 129M vs. cis 129V haplotypes'
+subt = paste('n = ',n,' individuals, log-rank test p value = ',formatC(p,digits=2),
+             ' t test p value = ',formatC(p_t,digits=2),sep='') 
+plot(survfit(Surv(ages,status)~group,data=survdata),col=c('black','blue'),main=main,sub=subt,lwd=3)
+legend('bottomleft',c('cis 129M','cis 129V'),col=c('black','blue'),lwd=3)
+survfit(Surv(ages,status)~group,data=survdata)
+# dev.off()
+# 145 M vs. 13 V
+
+# to test above code, you can use this code above to add fake data to it and see how the MV curve changes
+# testdata = data.frame(ages=as.numeric(c(30,29,29,27,26,25,24,23,22,21)), status=rep(1,10), group=rep("MV",10))
+# survdata = rbind(survdata, testdata)
+
+#### PARENT/CHILD YEAR OF BIRTH DIFFERENCE, SEX AND SANITY CHECKS
+
+# what are the sexes of the affected parents?
+sql_query = "
+select   parent.sex
+from     phen parent, phen child
+where    child.affparent = parent.iid
+and      child.gene_positive = 1 
+and      parent.gene_positive = 1
+;
+"
+table(sqldf(sql_query))
+# 47 F, 39 M
 
 # typical age of parent at birth of child in all individuals
 sql_query = "
@@ -388,7 +404,7 @@ hist(yobdiff$yobdiff,breaks=100,col='black')
 # check the outliers manually to look for any suspect data
 sql_query = "
 select   parent.iid, parent.sex, parent.yob, child.iid, child.sex, child.yob, 
-         child.yob - parent.yob yobdiff
+child.yob - parent.yob yobdiff
 from     phen parent, phen child
 where    (parent.iid = child.mother or parent.iid = child.father)
 and      ((child.yob - parent.yob < 20) or (child.yob - parent.yob > 40))
@@ -398,6 +414,97 @@ and      (child.yob - parent.yob) is not null
 # sqldf(sql_query)
 # both of the parents older than 40 at child's birth were males
 # all of the parents younger than 20 at child's birth were females
+
+
+#### YEAR OF ONSET AND POTENTIAL SOURCES OF ASCERTAINMENT BIAS
+
+
+# range of dates for direct ascertainment
+sql_query = "
+select   study, min(yob+age) fromyear, max(yob+age) toyear
+from     phen
+where    infcat =  1
+and      died_cjd
+group by study
+order by study
+;"
+sqldf(sql_query)
+
+# pub-quality histogram of year of onset/death (Fig 2b)
+phen$yoa = phen$yob + phen$age
+yoa_hist_all = table(phen$yoa[phen$died_cjd])
+yoa_hist_both1 = table(phen$yoa[phen$died_cjd & phen$infcat == 1])
+png('fig2b.yoa.hist.e200k.png',res=300,pointsize=3,width=500,height=500)
+par(lend=1)
+plot(yoa_hist_all,lwd=2,type='h',col='#999999',xaxt='n',xlab='Year of onset or death',ylab='Frequency',
+     main = 'Year of onset/death distribution')
+points(yoa_hist_both1,col='black',type='h',lwd=2)
+axis(side=1,at=c(1940,1960,1980,2000,2013),labels=c(1940,1960,1980,2000,2013))
+abline(h=0,lwd=.5)
+legend('topleft',c('direct','indirect'),lwd=2,col=c('black','#999999'))
+mtext(side=3, line=-2, text="B", cex=2, adj=0, outer=TRUE)
+dev.off()
+
+# check percentage of years of onset that are since the gene's discovery
+sum(!is.na(phen$yoa) & phen$yoa > 1990)/sum(!is.na(phen$yoa)) # 92%
+sum(!is.na(phen$yoa) & phen$yoa > 1988)/sum(!is.na(phen$yoa)) # 92%
+# 92% are since 1991 inclusive, with no cases in 1989 or 1990
+
+
+# pub-quality figure: yob/ao correlation (Fig 2c)
+png('fig2c.yob.aa.png',res=300,pointsize=3,width=500,height=500)
+m = lm(age ~ yob, data=subset(phen, died_cjd & infcat == 1))
+summary(m)
+slope1 = summary(m)$coefficients[2,1]
+pval1 = summary(m)$coefficients[2,4]
+m1 = m
+m = lm(age ~ yob, data=subset(phen, died_cjd))
+summary(m)
+slope2 = summary(m)$coefficients[2,1]
+pval2 = summary(m)$coefficients[2,4]
+m2 = m
+subtitle = ''
+# uncomment this code to auto-generate a subtitle:
+# subtitle=paste("slope = ",formatC(slope1,digits=2,format='f')," (p = ",
+#                formatC(pval1,digits=2),") with only black points",", slope = ",
+#                formatC(slope2,digits=2,format='f')," (p = ",
+#                formatC(pval2,digits=2),") with all points",
+#                sep='')
+plot(phen$yob[phen$died_cjd], phen$age[phen$died_cjd], pch=19, col='#999999', xlab='Year of birth', ylab='Age of onset or death',
+     main = 'Year of birth - age of onset/death correlation', sub = subtitle, ylim=c(0,90))
+points(phen$yob[phen$died_cjd & phen$infcat == 1], phen$age[phen$died_cjd & phen$infcat == 1], pch=19, col='black')
+abline(m1, col='black', lwd = .75)
+abline(m2, col='black', lty='dashed', lwd= .75)
+legend('bottomleft',c('direct','indirect'),col=c('black','gray'),pch=19)
+mtext(side=3, line=-2, text="C", cex=2, adj=0, outer=TRUE)
+dev.off()
+
+slope1
+pval1
+slope2
+pval2
+
+
+# year of birth desc stats
+sum(!is.na(phen$yob)) 
+sum(!is.na(phen$yob[phen$died_cjd])) 
+# directly ascertained
+sum(!is.na(phen$yob[phen$died_cjd & phen$infcat == 1])) 
+sum(phen$died_cjd & phen$infcat == 1) 
+sum(!is.na(phen$yob[phen$died_cjd & phen$infcat == 1]))/sum(phen$died_cjd & phen$infcat == 1) 
+# indirectly ascertained
+sum(!is.na(phen$yob[phen$died_cjd & phen$infcat > 1])) 
+sum(phen$died_cjd & phen$infcat > 1) 
+sum(!is.na(phen$yob[phen$died_cjd & phen$infcat > 1]))/sum(phen$died_cjd & phen$infcat > 1) 
+
+# how many asymptomatic individuals are included?
+sum(phen$gene_positive==1 & !phen$died_cjd) # 54
+# double checking numbers:
+# the year of death desc stats are based on 73 + 93 = 166
+# the asymptomatics are 54 
+# total = 220
+
+#### TESTS OF ANTICIPATION
 
 # test for anticipation among
 # parent/child pairs where both are dead and neither is listed as dying of CJD
@@ -531,7 +638,6 @@ legend('bottomleft',c('all samples','one direct','both direct'),
 mtext(side=3, line=-2, text="D", cex=2, adj=0, outer=TRUE)
 dev.off()
 
-
 # test for anticipation in various subsets
 t.test(po$parentage[both1], po$childage[both1], alternative='two.sided', paired=TRUE)
 t.test(po$parentage[one1], po$childage[one1], alternative='two.sided', paired=TRUE)
@@ -641,71 +747,6 @@ and      child.gt129 = 'MV' and child.cis129 ='M'
 "
 po129mv = sqldf(sql_query)
 t.test(po129mv$parentage, po129mv$childage, paired=TRUE) # not enough observations
-
-# test for heritability based on parent/offspring regression
-# png('cx.paroff.regression.png',width=600,height=400)
-m = lm(childage ~ parentage, data=po)
-p = summary(m)$coefficients[2,4]
-sum(!is.na(po$childage) & !is.na(po$parentage))
-
-subt = paste('p = ',formatC(p,digits=2),sep='')
-plot(po$parentage, po$childage, xaxt='n', yaxt='n', pch=19,
-     main = 'No correlation between parent and child age of onset/death',
-     xlab = '', ylab = '', sub=subt)
-axis(side=1,col=pcolor,col.axis=pcolor)
-mtext(side=1,col=pcolor,text=expression(bold('Parent')),padj=3)
-axis(side=2,col=ccolor,col.axis=ccolor)
-mtext(side=2,col=ccolor,text=expression(bold('Child')),padj=-3)
-# dev.off()
-
-# test for heritability among different subsets of data
-cor.test(po$parentage, po$childage)
-cor.test(po$parentage[one1], po$childage[one1])
-cor.test(po$parentage[both1], po$childage[both1])
-
-# get all parent-child pairs
-sql_query = "
-select   parent.study study, 
-         parent.gene_positive p_gene_positive,
-         parent.died_cjd p_died_cjd,
-         parent.age p_age,
-         parent.yob p_yob,
-         child.gene_positive c_gene_positive,
-         child.died_cjd c_died_cjd,
-         child.age c_age,
-         child.yob c_yob
-from     phen parent, phen child
-where    child.affparent = parent.iid
-;
-"
-pc = sqldf(sql_query)
-
-# number of gene-positive parent-child pairs
-sum(pc$p_gene_positive == 1 & pc$c_gene_positive == 1)
-
-# descriptive stats for parent-child pairs
-sql_query = "
-select   study,
-         count(*),
-         sum(p_gene_positive = 1 and c_gene_positive = 1) both_gp
-from     pc
-group by study
-order by study
-"
-pc_descstats = sqldf(sql_query)
-pc_descstats
-
-descstats$gp_pairs = pc_descstats$both_gp
-
-# Create Table 3
-summary = c('all',sum(descstats$n_gene_positive),sum(descstats$gp_pairs),
-            sum(descstats$pct_indirect*descstats$n_gene_positive)/sum(descstats$n_gene_positive),
-            sum(descstats$pct_asymp*descstats$n_gene_positive)/sum(descstats$n_gene_positive))
-descstats_for_tbl3 = rbind(descstats[,c('study','n_gene_positive','gp_pairs','pct_indirect','pct_asymp')],
-                          summary)
-descstats_for_tbl3
-
-write.table(descstats_for_tbl3,'descstats.txt',sep='\t',row.names=FALSE,col.names=TRUE,quote=FALSE)
 
 # anticipation survival analysis
 # parent-child pairs where both are gene positive
@@ -959,6 +1000,28 @@ for (seed in 1:n_iter) {
 mean(surv_results$meddiff)
 sum(surv_results$p < .05)
 
+#### TESTS OF HERITABILITY OF AGE OF ONSET
+
+# test for heritability based on parent/offspring regression
+# png('cx.paroff.regression.png',width=600,height=400)
+m = lm(childage ~ parentage, data=po)
+p = summary(m)$coefficients[2,4]
+sum(!is.na(po$childage) & !is.na(po$parentage))
+
+subt = paste('p = ',formatC(p,digits=2),sep='')
+plot(po$parentage, po$childage, xaxt='n', yaxt='n', pch=19,
+     main = 'No correlation between parent and child age of onset/death',
+     xlab = '', ylab = '', sub=subt)
+axis(side=1,col=pcolor,col.axis=pcolor)
+mtext(side=1,col=pcolor,text=expression(bold('Parent')),padj=3)
+axis(side=2,col=ccolor,col.axis=ccolor)
+mtext(side=2,col=ccolor,text=expression(bold('Child')),padj=-3)
+# dev.off()
+
+# test for heritability among different subsets of data
+cor.test(po$parentage, po$childage)
+cor.test(po$parentage[one1], po$childage[one1])
+cor.test(po$parentage[both1], po$childage[both1])
 
 #  sibling pair regression for heritability?
 sql_query = "
@@ -975,42 +1038,4 @@ cor.test(sibs$sib1age, sibs$sib2age)
 m = lm(sib1age ~ sib2age, data=sibs)
 summary(m)
 sum(!is.na(sibs$sib1age) & !is.na(sibs$sib2age))
-
-# what fraction of at-risk individuals have undergone predictive testing?
-gene_pos_iids = phen$iid[phen$gene_positive == 1]
-# at risk are those with a gene pos parent and self not yet dead of CJD
-phen$at_risk = (phen$mother %in% gene_pos_iids | phen$father %in% gene_pos_iids) & !phen$died_cjd
-# also at risk are those with an at risk parent who did not test negative
-# so iterate for a few generations here (manually checked to see when no additional
-# individuals were being added)
-at_risk_iids = phen$iid[phen$at_risk & (phen$gene_positive != 0)]
-phen$at_risk = phen$at_risk | (phen$mother %in% at_risk_iids | phen$father %in% at_risk_iids)
-at_risk_iids = phen$iid[phen$at_risk & (phen$gene_positive != 0)]
-phen$at_risk = phen$at_risk | (phen$mother %in% at_risk_iids | phen$father %in% at_risk_iids)
-at_risk_iids = phen$iid[phen$at_risk & (phen$gene_positive != 0)]
-phen$at_risk = phen$at_risk | (phen$mother %in% at_risk_iids | phen$father %in% at_risk_iids)
-
-# summary of at-risk people by mutation status (-1 = unknown, 0 = negative, 1 = positive)
-table(phen$gene_positive[phen$at_risk])
-
-# add in the manual counts of at-risk individuals who were omitted from the phen
-# spreadsheet, from the UCSF pedigrees
-ucsf_at_risk = read.table('ucsf-at-risk-counts.txt',header=TRUE)
-# N.B. in the manual UCSF counting, as above, at risk is rigorously defined as a direct 
-# descendent of someone who tests positive, without any negative tests in intervening generations.
-# Sibs of single affecteds w/o other family history are NOT considered at risk.
-ucsf_at_risk_n = sum(ucsf_at_risk$n_atrisk) 
-ucsf_at_risk_n
-
-tested = sum(phen$gene_positive[phen$at_risk] %in% c(0,1))
-untested = sum(phen$gene_positive[phen$at_risk] == -1) + ucsf_at_risk_n
-
-proportion_tested = tested / (tested+untested)
-proportion_tested
-
-# % of people ascertained directly who have no family history
-sum(is.na(phen$affparent[phen$infcat==1 & phen$died_cjd]))/sum(phen$infcat==1 & phen$died_cjd)
-
-# note that it goes down to 42% if you also include asymptomatics seen directly,  i.e. 
-sum(is.na(phen$affparent[phen$infcat==1]))/sum(phen$infcat==1) # = 42%
 
