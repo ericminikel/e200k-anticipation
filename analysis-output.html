@@ -183,7 +183,7 @@ hljs.initHighlightingOnLoad();
 
 <h3>analysis-output.html</h3>
 
-<p>Eric Minikel &mdash; <em>Sep 21, 2014, 5:46 PM</em></p>
+<p>Eric Minikel &mdash; <em>Sep 22, 2014, 3:27 PM</em></p>
 
 <pre><code class="r">setwd(&#39;~/d/sci/030e200k/analysis/2&#39;)
 options(stringsAsFactors=FALSE)
@@ -348,7 +348,7 @@ sum(phen$questionable &amp; phen$died_cjd) # of people who died of CJD
 
 <pre><code class="r">
 # uncomment this line to re-run analysis without the &quot;questionable&quot; individuals
-# phen = phen[!phen$questionable,]
+#phen = phen[!phen$questionable,]
 
 #### GENERAL DESCRIPTIVE STATISTICS / TABLE 3
 
@@ -1566,104 +1566,6 @@ sum(phen$gene_positive==1 &amp; !phen$died_cjd) # 54
 
 #### TESTS OF ANTICIPATION
 
-# test for anticipation among
-# parent/child pairs where both are dead and neither is listed as dying of CJD
-sql_query = &quot;
-select   parent.iid, child.iid, 
-         parent.age parentage, child.age childage,
-         parent.notes pnotes, child.notes cnotes
-from     phen parent, phen  child
-where    (parent.iid = child.mother or parent.iid = child.father)
-and      (not parent.gene_positive = 1)
-and      (not child.gene_positive = 1)
-and      parent.dead and child.dead
---and      parent.conf_non_cjd and child.conf_non_cjd
---and      child.age &gt; 40 and parent.age &gt; 40
-;
-&quot;
-non_e200k_deaths = sqldf(sql_query)
-t.test(non_e200k_deaths$parentage, non_e200k_deaths$childage, paired=TRUE, alternative=&#39;two.sided&#39;)
-</code></pre>
-
-<pre><code>
-    Paired t-test
-
-data:  non_e200k_deaths$parentage and non_e200k_deaths$childage
-t = 3.439, df = 36, p-value = 0.001492
-alternative hypothesis: true difference in means is not equal to 0
-95 percent confidence interval:
-  5.588 21.655
-sample estimates:
-mean of the differences 
-                  13.62 
-</code></pre>
-
-<pre><code class="r">
-# further restrict to parent/child pairs whose cause of death is listed and is confidently
-# not CJD
-sql_query = &quot;
-select   parent.iid, child.iid, 
-parent.age parentage, child.age childage,
-parent.notes pnotes, child.notes cnotes
-from     phen parent, phen  child
-where    (parent.iid = child.mother or parent.iid = child.father)
-and      (not parent.gene_positive = 1)
-and      (not child.gene_positive = 1)
-and      parent.dead and child.dead
-and      parent.conf_non_cjd and child.conf_non_cjd
---and      child.age &gt; 40 and parent.age &gt; 40
-;
-&quot;
-non_e200k_deaths = sqldf(sql_query)
-t.test(non_e200k_deaths$parentage, non_e200k_deaths$childage, paired=TRUE, alternative=&#39;two.sided&#39;)
-</code></pre>
-
-<pre><code>
-    Paired t-test
-
-data:  non_e200k_deaths$parentage and non_e200k_deaths$childage
-t = 4.486, df = 8, p-value = 0.00204
-alternative hypothesis: true difference in means is not equal to 0
-95 percent confidence interval:
- 17.06 53.16
-sample estimates:
-mean of the differences 
-                  35.11 
-</code></pre>
-
-<pre><code class="r">
-# further restrict to individuals dying past the age of 40
-sql_query = &quot;
-select   parent.iid, child.iid, 
-         parent.age parentage, child.age childage,
-parent.notes pnotes, child.notes cnotes
-from     phen parent, phen  child
-where    (parent.iid = child.mother or parent.iid = child.father)
-and      (not parent.gene_positive = 1)
-and      (not child.gene_positive = 1)
-and      parent.dead and child.dead
-and      parent.conf_non_cjd and child.conf_non_cjd
-and      child.age &gt; 40 and parent.age &gt; 40
-;
-&quot;
-non_e200k_deaths = sqldf(sql_query)
-t.test(non_e200k_deaths$parentage, non_e200k_deaths$childage, paired=TRUE, alternative=&#39;two.sided&#39;)
-</code></pre>
-
-<pre><code>
-    Paired t-test
-
-data:  non_e200k_deaths$parentage and non_e200k_deaths$childage
-t = 6.837, df = 4, p-value = 0.002394
-alternative hypothesis: true difference in means is not equal to 0
-95 percent confidence interval:
-  9.384 22.216
-sample estimates:
-mean of the differences 
-                   15.8 
-</code></pre>
-
-<pre><code class="r">
 # get parent-child pairs where both have an age of onset/death
 sql_query = &quot;
 select   parent.age parentage, parent.infcat parentinfcat,
@@ -2716,6 +2618,108 @@ F-statistic: 0.236 on 1 and 24 DF,  p-value: 0.632
 </code></pre>
 
 <pre><code>[1] 26
+</code></pre>
+
+<pre><code class="r">
+
+#### NEGATIVE CONTROL: DEATHS AMONG NON-E200K INDIVIDUALS
+
+
+# test for anticipation among
+# parent/child pairs where both are dead and neither is listed as dying of CJD
+sql_query = &quot;
+select   parent.iid, child.iid, 
+parent.age parentage, child.age childage,
+parent.notes pnotes, child.notes cnotes
+from     phen parent, phen  child
+where    (parent.iid = child.mother or parent.iid = child.father)
+and      (not parent.gene_positive = 1)
+and      (not child.gene_positive = 1)
+and      parent.dead and child.dead
+--and      parent.conf_non_cjd and child.conf_non_cjd
+--and      child.age &gt; 40 and parent.age &gt; 40
+;
+&quot;
+non_e200k_deaths = sqldf(sql_query)
+t.test(non_e200k_deaths$parentage, non_e200k_deaths$childage, paired=TRUE, alternative=&#39;two.sided&#39;)
+</code></pre>
+
+<pre><code>
+    Paired t-test
+
+data:  non_e200k_deaths$parentage and non_e200k_deaths$childage
+t = 3.439, df = 36, p-value = 0.001492
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+  5.588 21.655
+sample estimates:
+mean of the differences 
+                  13.62 
+</code></pre>
+
+<pre><code class="r">
+# further restrict to parent/child pairs whose cause of death is listed and is confidently
+# not CJD
+sql_query = &quot;
+select   parent.iid, child.iid, 
+parent.age parentage, child.age childage,
+parent.notes pnotes, child.notes cnotes
+from     phen parent, phen  child
+where    (parent.iid = child.mother or parent.iid = child.father)
+and      (not parent.gene_positive = 1)
+and      (not child.gene_positive = 1)
+and      parent.dead and child.dead
+and      parent.conf_non_cjd and child.conf_non_cjd
+--and      child.age &gt; 40 and parent.age &gt; 40
+;
+&quot;
+non_e200k_deaths = sqldf(sql_query)
+t.test(non_e200k_deaths$parentage, non_e200k_deaths$childage, paired=TRUE, alternative=&#39;two.sided&#39;)
+</code></pre>
+
+<pre><code>
+    Paired t-test
+
+data:  non_e200k_deaths$parentage and non_e200k_deaths$childage
+t = 4.486, df = 8, p-value = 0.00204
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ 17.06 53.16
+sample estimates:
+mean of the differences 
+                  35.11 
+</code></pre>
+
+<pre><code class="r">
+# further restrict to individuals dying past the age of 40
+sql_query = &quot;
+select   parent.iid, child.iid, 
+parent.age parentage, child.age childage,
+parent.notes pnotes, child.notes cnotes
+from     phen parent, phen  child
+where    (parent.iid = child.mother or parent.iid = child.father)
+and      (not parent.gene_positive = 1)
+and      (not child.gene_positive = 1)
+and      parent.dead and child.dead
+and      parent.conf_non_cjd and child.conf_non_cjd
+and      child.age &gt; 40 and parent.age &gt; 40
+;
+&quot;
+non_e200k_deaths = sqldf(sql_query)
+t.test(non_e200k_deaths$parentage, non_e200k_deaths$childage, paired=TRUE, alternative=&#39;two.sided&#39;)
+</code></pre>
+
+<pre><code>
+    Paired t-test
+
+data:  non_e200k_deaths$parentage and non_e200k_deaths$childage
+t = 6.837, df = 4, p-value = 0.002394
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+  9.384 22.216
+sample estimates:
+mean of the differences 
+                   15.8 
 </code></pre>
 
 <pre><code class="r">
