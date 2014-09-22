@@ -61,7 +61,7 @@ sum(phen$questionable & phen$gene_positive == 1) # of mutation-positive (includi
 sum(phen$questionable) # of all individuals including unaffecteds
 
 # uncomment this line to re-run analysis without the "questionable" individuals
-# phen = phen[!phen$questionable,]
+#phen = phen[!phen$questionable,]
 
 #### GENERAL DESCRIPTIVE STATISTICS / TABLE 3
 
@@ -505,59 +505,6 @@ sum(phen$gene_positive==1 & !phen$died_cjd) # 54
 # total = 220
 
 #### TESTS OF ANTICIPATION
-
-# test for anticipation among
-# parent/child pairs where both are dead and neither is listed as dying of CJD
-sql_query = "
-select   parent.iid, child.iid, 
-         parent.age parentage, child.age childage,
-         parent.notes pnotes, child.notes cnotes
-from     phen parent, phen  child
-where    (parent.iid = child.mother or parent.iid = child.father)
-and      (not parent.gene_positive = 1)
-and      (not child.gene_positive = 1)
-and      parent.dead and child.dead
---and      parent.conf_non_cjd and child.conf_non_cjd
---and      child.age > 40 and parent.age > 40
-;
-"
-non_e200k_deaths = sqldf(sql_query)
-t.test(non_e200k_deaths$parentage, non_e200k_deaths$childage, paired=TRUE, alternative='two.sided')
-
-# further restrict to parent/child pairs whose cause of death is listed and is confidently
-# not CJD
-sql_query = "
-select   parent.iid, child.iid, 
-parent.age parentage, child.age childage,
-parent.notes pnotes, child.notes cnotes
-from     phen parent, phen  child
-where    (parent.iid = child.mother or parent.iid = child.father)
-and      (not parent.gene_positive = 1)
-and      (not child.gene_positive = 1)
-and      parent.dead and child.dead
-and      parent.conf_non_cjd and child.conf_non_cjd
---and      child.age > 40 and parent.age > 40
-;
-"
-non_e200k_deaths = sqldf(sql_query)
-t.test(non_e200k_deaths$parentage, non_e200k_deaths$childage, paired=TRUE, alternative='two.sided')
-
-# further restrict to individuals dying past the age of 40
-sql_query = "
-select   parent.iid, child.iid, 
-         parent.age parentage, child.age childage,
-parent.notes pnotes, child.notes cnotes
-from     phen parent, phen  child
-where    (parent.iid = child.mother or parent.iid = child.father)
-and      (not parent.gene_positive = 1)
-and      (not child.gene_positive = 1)
-and      parent.dead and child.dead
-and      parent.conf_non_cjd and child.conf_non_cjd
-and      child.age > 40 and parent.age > 40
-;
-"
-non_e200k_deaths = sqldf(sql_query)
-t.test(non_e200k_deaths$parentage, non_e200k_deaths$childage, paired=TRUE, alternative='two.sided')
 
 # get parent-child pairs where both have an age of onset/death
 sql_query = "
@@ -1038,4 +985,61 @@ cor.test(sibs$sib1age, sibs$sib2age)
 m = lm(sib1age ~ sib2age, data=sibs)
 summary(m)
 sum(!is.na(sibs$sib1age) & !is.na(sibs$sib2age))
+
+
+#### NEGATIVE CONTROL: DEATHS AMONG NON-E200K INDIVIDUALS
+
+
+# test for anticipation among
+# parent/child pairs where both are dead and neither is listed as dying of CJD
+sql_query = "
+select   parent.iid, child.iid, 
+parent.age parentage, child.age childage,
+parent.notes pnotes, child.notes cnotes
+from     phen parent, phen  child
+where    (parent.iid = child.mother or parent.iid = child.father)
+and      (not parent.gene_positive = 1)
+and      (not child.gene_positive = 1)
+and      parent.dead and child.dead
+--and      parent.conf_non_cjd and child.conf_non_cjd
+--and      child.age > 40 and parent.age > 40
+;
+"
+non_e200k_deaths = sqldf(sql_query)
+t.test(non_e200k_deaths$parentage, non_e200k_deaths$childage, paired=TRUE, alternative='two.sided')
+
+# further restrict to parent/child pairs whose cause of death is listed and is confidently
+# not CJD
+sql_query = "
+select   parent.iid, child.iid, 
+parent.age parentage, child.age childage,
+parent.notes pnotes, child.notes cnotes
+from     phen parent, phen  child
+where    (parent.iid = child.mother or parent.iid = child.father)
+and      (not parent.gene_positive = 1)
+and      (not child.gene_positive = 1)
+and      parent.dead and child.dead
+and      parent.conf_non_cjd and child.conf_non_cjd
+--and      child.age > 40 and parent.age > 40
+;
+"
+non_e200k_deaths = sqldf(sql_query)
+t.test(non_e200k_deaths$parentage, non_e200k_deaths$childage, paired=TRUE, alternative='two.sided')
+
+# further restrict to individuals dying past the age of 40
+sql_query = "
+select   parent.iid, child.iid, 
+parent.age parentage, child.age childage,
+parent.notes pnotes, child.notes cnotes
+from     phen parent, phen  child
+where    (parent.iid = child.mother or parent.iid = child.father)
+and      (not parent.gene_positive = 1)
+and      (not child.gene_positive = 1)
+and      parent.dead and child.dead
+and      parent.conf_non_cjd and child.conf_non_cjd
+and      child.age > 40 and parent.age > 40
+;
+"
+non_e200k_deaths = sqldf(sql_query)
+t.test(non_e200k_deaths$parentage, non_e200k_deaths$childage, paired=TRUE, alternative='two.sided')
 
