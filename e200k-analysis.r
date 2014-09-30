@@ -646,8 +646,11 @@ t.test(po$parentage[allp & po$study=='ancjdr'], po$childage[allp & po$study=='an
 t.test(po$parentage[allp & po$study=='goett'], po$childage[allp & po$study=='goett'], paired=TRUE)
 t.test(po$parentage[allp & po$study=='mrc'], po$childage[allp & po$study=='mrc'], paired=TRUE)
 t.test(po$parentage[allp & po$study=='ucsf'], po$childage[allp & po$study=='ucsf'], paired=TRUE)
+# in just UCSF and MRC
+t.test(po$parentage[allp & po$study%in%c('ucsf','mrc')], po$childage[allp & po$study%in%c('ucsf','mrc')], paired=TRUE)
 # and in all:
 t.test(po$parentage[allp], po$childage[allp], paired=TRUE)
+
 
 # yob-ao correlation in subsets of data
 summary(lm(age ~ yob, data = subset(phen, study=='ancjdr' & died_cjd)))
