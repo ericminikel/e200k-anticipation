@@ -60,43 +60,39 @@ pair_ascertainable = parent_ascertainable & child_ascertainable
 t.test(parent_onset_age[pair_ascertainable],child_onset_age[pair_ascertainable],paired=TRUE,alternative='two.sided')
 # highly significant 17-year difference in age of onset
 
-png('anticipation-02-anticipation-visualized.png',width=750,height=500,res=100)
-par(mar=c(4,4,1,1))
-plot(parent_onset_age[pair_ascertainable],child_onset_age[pair_ascertainable],pch=19,
-     xlim=c(0,100),ylim=c(0,100),axes=FALSE,xlab='',ylab='')
+year_of_birth = c(parent_yob[pair_ascertainable],child_yob[pair_ascertainable])
+age_of_onset = c(parent_onset_age[pair_ascertainable],child_onset_age[pair_ascertainable])
+cor.test(year_of_birth,age_of_onset)
+
+png('~/d/j/cureffi/media/2014/10/yob-ao-correlation.png',width=750,height=500,res=100)
+plot(year_of_birth,age_of_onset,pch=20,axes=FALSE,xlab='Year of birth',
+     ylab='Age of onset',main='Year of birth and age of onset are correlated\nin simulated ascertained pairs')
+abline(a=1989,b=-1,col='gray',lwd=2)
+abline(a=2013,b=-1,col='gray',lwd=2)
+axis(side=1,at=c(190:198)*10,lwd=0,lwd.ticks=1,cex.axis=.8)
+axis(side=2,at=c(2:10)*10,lwd=0,lwd.ticks=1,las=1,cex.axis=.8)
+points(c(1951,1951),c(55,80),col='red',type='l',lwd=2)
+text(x=1951,y=80,pos=4,label='55 years old',col='red')
+points(c(1980,1980),c(25,60),col='red',type='l',lwd=2)
+text(x=1980,y=60,pos=2,label='25 years old',col='red')
+dev.off()
+
+mean(age_of_onset[round(year_of_birth)==1951])
+mean(age_of_onset[round(year_of_birth) > 1979])
+
+png('~/d/j/cureffi/media/2014/10/parent-child-correlation.png',width=750,height=500,res=100)
+m = lm(child_onset_age[pair_ascertainable] ~ parent_onset_age[pair_ascertainable])
+plot(parent_onset_age[pair_ascertainable],child_onset_age[pair_ascertainable],pch=20,axes=FALSE,
+     xlab='',ylab='',main='Ascertainment bias causes parent and child age of onset to be correlated',
+     ylim=c(0,100),xlim=c(0,100))
 axis(side=1,at=(0:10)*10,col=pcolor,col.axis=pcolor)
 mtext(side=1,col=pcolor,text=expression(bold('Parent age of onset/death')),padj=3)
 axis(side=2,at=(0:10)*10,col=ccolor,col.axis=ccolor,las=1)
 mtext(side=2,col=ccolor,text=expression(bold('Child age of onset/death')),padj=-3)
 abline(a=0,b=1,col='black')
+abline(m,col='red')
+summary(m)
 dev.off()
-
-# FamiLinx analysis
-# SQL query that generated the flat table
-# select   r.Child_id, r.Parent_id, (yc.Dyear - yc.Byear) child_ad, (yp.Dyear - yp.Byear) parent_ad
-# from     relationship r, years yc, years yp
-# where    r.Child_id = yc.Id
-# and      r.Parent_id = yp.Id
-# and      yc.Byear > -1 and yc.Dyear > -1
-# and      yp.Byear > -1 and yp.Dyear > -1
-# into outfile '~/d/sci/039famil/familinx/adpairs.txt'
-# ;
-
-familinx_pairs = read.table('~/d/sci/039famil/familinx/adpairs.txt',header=FALSE)
-colnames(familinx_pairs) = c('child_id','parent_id','child_age_death','parent_age_death')
-is_valid = familinx_pairs$child_age_death >= 0 & familinx_pairs$child_age_death <= 120 &
-  familinx_pairs$parent_age_death >= 0 & familinx_pairs$parent_age_death <= 120
-t.test(familinx_pairs$parent_age_death[is_valid],familinx_pairs$child_age_death[is_valid],paired=TRUE,alternative='two.sided')
-# highly significant 13.6 year difference in age of death
-over_40 = is_valid & familinx_pairs$child_age_death >= 40 & familinx_pairs$parent_age_death >= 40
-t.test(familinx_pairs$parent_age_death[over_40],familinx_pairs$child_age_death[over_40],paired=TRUE,alternative='two.sided')
-# 0.85 years anticipation at p < 2.2e-16
-
-# plot(familinx_pairs$parent_age_death[is_valid],familinx_pairs$child_age_death[is_valid],pch='.')
-# plot(familinx_pairs$parent_age_death[over_40],familinx_pairs$child_age_death[over_40],pch='.')
-# over_50 = is_valid & familinx_pairs$child_age_death >= 50 & familinx_pairs$parent_age_death >= 50
-# t.test(familinx_pairs$parent_age_death[over_50],familinx_pairs$child_age_death[over_50],paired=TRUE,alternative='two.sided')
-
 
 set.seed(1)
 parent_yob = runif(n=100000,min=1700,max=2000) # generate parents born from 1700 through 2000
@@ -105,6 +101,7 @@ parent_hypo_onset_age = round(rnorm(n=100000, m=64, s=10)) # parent's age of ons
 child_hypo_onset_age = round(rnorm(n=100000, m=64, s=10)) # child's age of onset is 64+-10
 parent_hypo_onset_year = parent_yob + parent_hypo_onset_age # figure out what year parent has onset
 child_hypo_onset_year = child_yob + child_hypo_onset_age # figure out what year child has onset
+
 # read in the actuarial life tables
 life = read.table('~/d/sci/src/e200k-anticipation/ssa.actuarial.table.2009.txt',sep='\t',header=TRUE)
 life$age = as.integer(life$age)
@@ -127,16 +124,9 @@ t.test(parent_hypo_onset_age,child_hypo_onset_age) # no.
 parent_ascertainable = parent_hypo_onset_age < parent_intercurrent_age & parent_hypo_onset_year > 1989 & parent_hypo_onset_year < 2013
 child_ascertainable = child_hypo_onset_age < child_intercurrent_age & child_hypo_onset_year > 1989 & child_hypo_onset_year < 2013
 pair_ascertainable = parent_ascertainable & child_ascertainable
-t.test()
-
-
-
-
 
 t.test(parent_hypo_onset_age,child_hypo_onset_age,paired=TRUE,alternative='two.sided')
 t.test(parent_hypo_onset_age[pair_ascertainable],child_hypo_onset_age[pair_ascertainable],paired=TRUE,alternative='two.sided')
-
-
 
 t.test(parent_hypo_onset_age,child_hypo_onset_age,paired=TRUE,alternative='two.sided')
 t.test(parent_hypo_onset_age[pair_ascertainable],child_hypo_onset_age[pair_ascertainable],paired=TRUE,alternative='two.sided')
