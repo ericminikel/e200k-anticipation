@@ -183,7 +183,7 @@ hljs.initHighlightingOnLoad();
 
 <h3>analysis-output.html</h3>
 
-<p>Eric Minikel &mdash; <em>Sep 22, 2014, 3:27 PM</em></p>
+<p>Eric Minikel &mdash; <em>Dec 13, 2014, 3:44 PM</em></p>
 
 <pre><code class="r">setwd(&#39;~/d/sci/030e200k/analysis/2&#39;)
 options(stringsAsFactors=FALSE)
@@ -1867,6 +1867,23 @@ mean of the differences
                   1.286 
 </code></pre>
 
+<pre><code class="r"># in just UCSF and MRC
+t.test(po$parentage[allp &amp; po$study%in%c(&#39;ucsf&#39;,&#39;mrc&#39;)], po$childage[allp &amp; po$study%in%c(&#39;ucsf&#39;,&#39;mrc&#39;)], paired=TRUE)
+</code></pre>
+
+<pre><code>
+    Paired t-test
+
+data:  po$parentage[allp &amp; po$study %in% c(&quot;ucsf&quot;, &quot;mrc&quot;)] and po$childage[allp &amp; po$study %in% c(&quot;ucsf&quot;, &quot;mrc&quot;)]
+t = 1.228, df = 29, p-value = 0.2294
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ -2.020  8.087
+sample estimates:
+mean of the differences 
+                  3.033 
+</code></pre>
+
 <pre><code class="r"># and in all:
 t.test(po$parentage[allp], po$childage[allp], paired=TRUE)
 </code></pre>
@@ -1885,6 +1902,7 @@ mean of the differences
 </code></pre>
 
 <pre><code class="r">
+
 # yob-ao correlation in subsets of data
 summary(lm(age ~ yob, data = subset(phen, study==&#39;ancjdr&#39; &amp; died_cjd)))
 </code></pre>
@@ -2184,6 +2202,69 @@ as.integer(medians[2] - medians[1]) # take difference of medians of survival cur
 </code></pre>
 
 <pre><code class="r"># dev.off()
+
+# This section added 2014-12-13
+# in reply to Arturas Petronis&#39; question - anticipation from affected mother vs. affected father
+sql_query = &quot;
+select   parent.sex parent_sex, parent.age parentage, parent.infcat parentinfcat,
+child.age childage, child.infcat childinfcat,
+parent.study study -- same for parent and child
+from     phen parent, phen child
+where    child.affparent = parent.iid
+and      child.died_cjd
+and      parent.died_cjd
+and      parent.age is not null
+and      child.age is not null
+;
+&quot;
+po_mf = sqldf(sql_query)
+from_mother = po_mf$parent_sex == &#39;F&#39;
+from_father = po_mf$parent_sex == &#39;M&#39;
+sum(from_mother) # how many mother-to-child transmissions?
+</code></pre>
+
+<pre><code>[1] 26
+</code></pre>
+
+<pre><code class="r">sum(from_father) # how many father-to-child transmissions?
+</code></pre>
+
+<pre><code>[1] 13
+</code></pre>
+
+<pre><code class="r">t.test(po_mf$parentage[from_mother], po_mf$childage[from_mother], alternative=&#39;two.sided&#39;, paired=TRUE)
+</code></pre>
+
+<pre><code>
+    Paired t-test
+
+data:  po_mf$parentage[from_mother] and po_mf$childage[from_mother]
+t = 2.319, df = 25, p-value = 0.02887
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+  0.8688 14.6696
+sample estimates:
+mean of the differences 
+                  7.769 
+</code></pre>
+
+<pre><code class="r">t.test(po_mf$parentage[from_father], po_mf$childage[from_father], alternative=&#39;two.sided&#39;, paired=TRUE)
+</code></pre>
+
+<pre><code>
+    Paired t-test
+
+data:  po_mf$parentage[from_father] and po_mf$childage[from_father]
+t = 1.718, df = 12, p-value = 0.1114
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ -1.794 15.179
+sample estimates:
+mean of the differences 
+                  6.692 
+</code></pre>
+
+<pre><code class="r"># end new section
 
 # Ben Neale&#39;s suggestion - parent-child survival analysis w/o double-counting
 # randomly select one pair from each pedigree for survival analysis
