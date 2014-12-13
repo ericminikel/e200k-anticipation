@@ -759,6 +759,29 @@ medians = summary(sf)$table[,"median"] # extract medians from summary
 as.integer(medians[2] - medians[1]) # take difference of medians of survival curves
 # dev.off()
 
+# This section added 2014-12-13
+# in reply to Arturas Petronis' question - anticipation from affected mother vs. affected father
+sql_query = "
+select   parent.sex parent_sex, parent.age parentage, parent.infcat parentinfcat,
+child.age childage, child.infcat childinfcat,
+parent.study study -- same for parent and child
+from     phen parent, phen child
+where    child.affparent = parent.iid
+and      child.died_cjd
+and      parent.died_cjd
+and      parent.age is not null
+and      child.age is not null
+;
+"
+po_mf = sqldf(sql_query)
+from_mother = po_mf$parent_sex == 'F'
+from_father = po_mf$parent_sex == 'M'
+sum(from_mother) # how many mother-to-child transmissions?
+sum(from_father) # how many father-to-child transmissions?
+t.test(po_mf$parentage[from_mother], po_mf$childage[from_mother], alternative='two.sided', paired=TRUE)
+t.test(po_mf$parentage[from_father], po_mf$childage[from_father], alternative='two.sided', paired=TRUE)
+# end new section
+
 # Ben Neale's suggestion - parent-child survival analysis w/o double-counting
 # randomly select one pair from each pedigree for survival analysis
 po_pairs = sqldf("
