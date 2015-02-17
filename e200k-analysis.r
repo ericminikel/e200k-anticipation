@@ -301,7 +301,10 @@ survivaldata = phen[phen$gene_positive == 1,c("age","died_cjd")]
 mfit = survfit(Surv(age, died_cjd==1) ~ 1, data = survivaldata)
 mfit # median 64, n = 208 observations, 159 events
 # what does the survival curve look like overall?
-plot(mfit,col='black',lwd=3,main='Survival of all E200K individuals',xlab='Age',ylab='Proportion surviving')
+par(mar=c(5,5,5,5))
+plot(mfit,lwd=3,col='black',main='Survival of E200K individuals',xlab='Age',ylab='Proportion surviving',axes=FALSE)
+axis(side=1,at=c(0,20,40,60,80,100),labels=c(0,20,40,60,80,100),lwd=0,lwd.ticks=1)
+axis(side=2,at=c(0,.5,1),labels=c("0%","50%","100%"),las=1,lwd=0,lwd.ticks=1)
 mfit$surv[mfit$time==80] # proportion surviving at age 80
 
 
